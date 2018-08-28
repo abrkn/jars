@@ -1,4 +1,4 @@
-module.export = {
+module.exports = {
   createClient: require('./client'),
   createServer: require('./server'),
   createRouter: require('./router'),
