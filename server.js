@@ -27,6 +27,12 @@ async function createRpcServer(conn, channel, handler) {
       await pub.publishAsync(replyTo, encoded);
     };
 
+    const ack = async () => {
+      const encoded = JSON.stringify({ id, status: 'ack' });
+      debug(`ACK --> ${replyTo}: ${id}`);
+      await pub.publishAsync(replyTo, encoded);
+    };
+
     const replyWithError = async (error, code, data) => {
       let errorAsString;
 
@@ -50,7 +56,9 @@ async function createRpcServer(conn, channel, handler) {
 
     const replyWithResult = async result => reply({ result });
 
-    handler({ method, params, reply, replyWithResult, replyWithError });
+    ack().then(() => {
+      handler({ method, params, reply, replyWithResult, replyWithError });
+    });
   });
 
   await sub.subscribeAsync(channel);

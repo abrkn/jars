@@ -10,6 +10,9 @@ const Promise = require('bluebird');
 assert(!redis.getAsync);
 promisifyAll(redis);
 
+const ACK_TIMEOUT = 5e3;
+const RESPONSE_TIMEOUT = 30e3;
+
 async function createRpcClient(conn) {
   const sub = conn.duplicate();
   const pub = conn.duplicate();
@@ -20,7 +23,7 @@ async function createRpcClient(conn) {
   sub.on('message', (channel, encoded) => {
     debug(`RES <-- ${encoded}`);
 
-    const { id, result, error } = JSON.parse(encoded);
+    const { id, result, error, status } = JSON.parse(encoded);
 
     const handler = requests[id];
 
@@ -33,7 +36,9 @@ async function createRpcClient(conn) {
 
     delete requests[id];
 
-    if (result) {
+    if (status) {
+      resolve('ack');
+    } else if (result) {
       resolve(result);
     } else {
       reject(Object.assign(new Error(error.message), error));
@@ -42,10 +47,15 @@ async function createRpcClient(conn) {
 
   await sub.subscribeAsync(replyTo);
 
-  const request = async (channel, method, params = {}) => {
+  const request = async (
+    channel,
+    method,
+    params = {},
+    { ackTimeout = ACK_TIMEOUT, responseTimeout = RESPONSE_TIMEOUT } = {}
+  ) => {
     const id = (++requestCounter).toString();
 
-    const promise = new Promise((resolve, reject) => {
+    const ackPromise = new Promise((resolve, reject) => {
       requests[id] = { resolve, reject };
     });
 
@@ -55,11 +65,19 @@ async function createRpcClient(conn) {
       meta: { replyTo },
       params,
     });
-    debug(`REQ --> ${channel}: ${encoded}`);
 
     try {
       await pub.publishAsync(channel, encoded);
-      return await promise.timeout(10e3);
+      debug(`REQ --> ${channel}: ${encoded}`);
+
+      await ackPromise.timeout(ackTimeout);
+      debug(`ACK <-- ${channel}: ${id}`);
+
+      const responsePromise = new Promise((resolve, reject) => {
+        requests[id] = { resolve, reject };
+      });
+
+      return await responsePromise.timeout(responseTimeout);
     } catch (error) {
       delete requests[id];
       throw error;

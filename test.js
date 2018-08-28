@@ -1,3 +1,4 @@
+const Promise = require('bluebird');
 const test = require('ava');
 const createRpcClient = require('./client');
 const createRpcServer = require('./server');
@@ -78,6 +79,28 @@ test('calculator client/application', async t => {
     t.fail('Expected divide invocation to fail');
   } catch (error) {
     t.regex(error.message, /unhandled/i);
+  }
+
+  client.close();
+  app.close();
+});
+
+test.only('ack timeout', async t => {
+  const conn = redis.createClient();
+
+  const client = await createRpcClient(conn.duplicate());
+
+  const startAt = new Date().getTime();
+
+  try {
+    await client.request('ack timeout', 'test', {}, { ackTimeout: 1 });
+  } catch (error) {
+    if (error instanceof Promise.TimeoutError) {
+      t.true(new Date().getTime() - startAt < 100);
+      return;
+    }
+
+    throw error;
   }
 
   client.close();
