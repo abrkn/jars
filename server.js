@@ -34,10 +34,7 @@ async function createRpcServer(conn, channel, handler) {
       let errorAsString;
 
       if (error instanceof Error) {
-        errorAsString =
-          process.env.NODE_ENV === 'production'
-            ? 'Internal Server Error'
-            : error.message;
+        errorAsString = 'Internal Server Error';
       } else {
         errorAsString = error.toString();
       }
@@ -53,9 +50,12 @@ async function createRpcServer(conn, channel, handler) {
 
     const replyWithResult = async result => reply({ result });
 
-    ack().then(() => {
-      handler({ method, params, reply, replyWithResult, replyWithError });
-    });
+    Promise.resolve()
+      .then(ack)
+      .then(() =>
+        handler({ method, params, reply, replyWithResult, replyWithError })
+      )
+      .catch(replyWithError);
   });
 
   await sub.subscribeAsync(channel);

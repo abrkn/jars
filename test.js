@@ -105,3 +105,26 @@ test('ack timeout', async t => {
 
   client.close();
 });
+
+test('uncaught error in handler', async t => {
+  const conn = redis.createClient();
+  const channel = 'uncaught';
+
+  const app = await createApplication(conn.duplicate(), channel);
+
+  app.add('throw', (req, res) => {
+    throw new Error();
+  });
+
+  const client = await createRpcClient(conn.duplicate());
+
+  try {
+    await client.request(channel, 'throw');
+    t.fail('Expected error');
+  } catch (error) {
+    t.regex(error.message, /internal server/i);
+  }
+
+  client.close();
+  app.close();
+});
