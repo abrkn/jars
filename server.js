@@ -1,10 +1,7 @@
 const assert = require('assert');
 const debug = require('debug')('jars:server');
-const { promisify } = require('util');
-const { EventEmitter } = require('events');
 const redis = require('redis');
 const { promisifyAll } = require('bluebird');
-const { generate: generateShortId } = require('shortid');
 
 assert(!redis.getAsync);
 promisifyAll(redis);
