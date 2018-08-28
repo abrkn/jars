@@ -12,7 +12,7 @@ test('calculator', async t => {
     }
 
     if (method === 'multiply') {
-      return replyWithResult(params.n.reduce((p, c) => p + c, 0));
+      return replyWithResult(params.n.reduce((p, c) => p * c, 1));
     }
 
     return replyWithError(`Unknown method ${method}`);
