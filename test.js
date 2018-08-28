@@ -104,5 +104,4 @@ test('ack timeout', async t => {
   }
 
   client.close();
-  app.close();
 });
