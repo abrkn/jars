@@ -3,12 +3,8 @@ const debug = require('debug')('jars:client');
 const { promisify } = require('util');
 const { EventEmitter } = require('events');
 const redis = require('redis');
-const { promisifyAll } = require('bluebird');
 const { generate: generateShortId } = require('shortid');
 const Promise = require('bluebird');
-
-assert(!redis.getAsync);
-promisifyAll(redis);
 
 const ACK_TIMEOUT = 5e3;
 const RESPONSE_TIMEOUT = 30e3;
@@ -19,6 +15,8 @@ async function createRpcClient(conn) {
   const requests = {};
   const replyTo = generateShortId();
   let requestCounter = 0;
+
+  const pubPublishAsync = promisify(pub.publish).bind(pub);
 
   sub.on('message', (channel, encoded) => {
     debug(`RES <-- ${encoded}`);
@@ -47,7 +45,7 @@ async function createRpcClient(conn) {
     }
   });
 
-  await sub.subscribeAsync(replyTo);
+  await promisify(sub.subscribe).bind(sub)(replyTo);
 
   const request = async (
     channel,
@@ -76,7 +74,7 @@ async function createRpcClient(conn) {
     });
 
     try {
-      await pub.publishAsync(channel, encoded);
+      await pubPublishAsync(channel, encoded);
       debug(`REQ --> ${channel}: ${encoded}`);
 
       await ackPromise.timeout(ackTimeout);

@@ -1,14 +1,14 @@
 const assert = require('assert');
 const debug = require('debug')('jars:server');
 const redis = require('redis');
-const { promisifyAll } = require('bluebird');
-
-assert(!redis.getAsync);
-promisifyAll(redis);
+const { promisify } = require('util');
 
 async function createRpcServer(conn, channel, handler) {
   const sub = conn.duplicate();
   const pub = conn.duplicate();
+
+  const subSubscribeAsync = promisify(sub.subscribe).bind(sub);
+  const pubPublishAsync = promisify(pub.publish).bind(pub);
 
   sub.on('message', (channel, encoded) => {
     debug(`REQ <-- ${encoded}`);
@@ -21,13 +21,13 @@ async function createRpcServer(conn, channel, handler) {
     const reply = async message => {
       const encoded = JSON.stringify({ id, ...message });
       debug(`RES --> ${replyTo}: ${encoded}`);
-      await pub.publishAsync(replyTo, encoded);
+      await pubPublishAsync(replyTo, encoded);
     };
 
     const ack = async () => {
       const encoded = JSON.stringify({ id, status: 'ack' });
       debug(`ACK --> ${replyTo}: ${id}`);
-      await pub.publishAsync(replyTo, encoded);
+      await pubPublishAsync(replyTo, encoded);
     };
 
     const replyWithError = async (error, code, data) => {
@@ -58,7 +58,7 @@ async function createRpcServer(conn, channel, handler) {
       .catch(replyWithError);
   });
 
-  await sub.subscribeAsync(channel);
+  await subSubscribeAsync(channel);
 
   return {
     close: () => {
