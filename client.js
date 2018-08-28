@@ -32,16 +32,18 @@ async function createRpcClient(conn) {
       return;
     }
 
-    const { reject, resolve } = handler;
-
-    delete requests[id];
-
     if (status) {
-      resolve('ack');
-    } else if (result) {
-      resolve(result);
+      const { ackResolve } = handler;
+      ackResolve();
+      return;
+    }
+
+    const { responseReject, responseResolve } = handler;
+
+    if (result) {
+      responseResolve(result);
     } else {
-      reject(Object.assign(new Error(error.message), error));
+      responseReject(Object.assign(new Error(error.message), error));
     }
   });
 
@@ -54,10 +56,17 @@ async function createRpcClient(conn) {
     { ackTimeout = ACK_TIMEOUT, responseTimeout = RESPONSE_TIMEOUT } = {}
   ) => {
     const id = (++requestCounter).toString();
+    const request = {};
 
-    const ackPromise = new Promise((resolve, reject) => {
-      requests[id] = { resolve, reject };
+    const ackPromise = new Promise(ackResolve => {
+      Object.assign(request, { ...request, ackResolve });
     });
+
+    const responsePromise = new Promise((responseResolve, responseReject) => {
+      Object.assign(request, { ...request, responseResolve, responseReject });
+    });
+
+    requests[id] = request;
 
     const encoded = JSON.stringify({
       id,
@@ -73,14 +82,9 @@ async function createRpcClient(conn) {
       await ackPromise.timeout(ackTimeout);
       debug(`ACK <-- ${channel}: ${id}`);
 
-      const responsePromise = new Promise((resolve, reject) => {
-        requests[id] = { resolve, reject };
-      });
-
       return await responsePromise.timeout(responseTimeout);
-    } catch (error) {
+    } finally {
       delete requests[id];
-      throw error;
     }
   };
 
