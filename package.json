@@ -1,0 +1,30 @@
+{
+  "name": "jars",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ava": "0.25.0"
+  },
+  "dependencies": {
+    "bluebird": "3.5.1",
+    "debug": "3.1.0",
+    "redis": "2.8.0",
+    "shortid": "2.2.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abrkn/jars.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abrkn/jars/issues"
+  },
+  "homepage": "https://github.com/abrkn/jars#readme",
+  "description": ""
+}
