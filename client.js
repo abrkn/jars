@@ -65,7 +65,13 @@ async function createRpcClient(conn) {
     }
   };
 
-  return { request };
+  return {
+    request,
+    close: () => {
+      sub.quit();
+      pub.quit();
+    },
+  };
 }
 
 module.exports = createRpcClient;

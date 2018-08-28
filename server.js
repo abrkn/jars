@@ -52,6 +52,13 @@ async function createRpcServer(conn, channel, handler) {
   });
 
   await sub.subscribeAsync(channel);
+
+  return {
+    close: () => {
+      sub.quit();
+      pub.quit();
+    },
+  };
 }
 
 module.exports = createRpcServer;
