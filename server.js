@@ -16,8 +16,10 @@ async function createRpcServer(conn, channel, handler) {
   sub.on('message', (channel, encoded) => {
     debug(`REQ <-- ${encoded}`);
 
-    const { method, params, id } = JSON.parse(encoded);
-    const { replyTo } = params;
+    const { method, params, id, meta } = JSON.parse(encoded);
+
+    const { replyTo } = meta;
+    assert(replyTo, 'replyTo is required');
 
     const reply = async message => {
       const encoded = JSON.stringify({ id, ...message });

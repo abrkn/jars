@@ -52,7 +52,8 @@ async function createRpcClient(conn) {
     const encoded = JSON.stringify({
       id,
       method,
-      params: { replyTo, ...params },
+      meta: { replyTo },
+      params,
     });
     debug(`REQ --> ${channel}: ${encoded}`);
 
