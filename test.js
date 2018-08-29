@@ -1,9 +1,7 @@
 const Promise = require('bluebird');
 const test = require('ava');
-// const createRpcClient = require('./client');
-// const createRpcServer = require('./server');
-const createRpcClient = require('./client.list');
-const createRpcServer = require('./server.list');
+const createRpcClient = require('./client');
+const createRpcServer = require('./server');
 const createApplication = require('./application');
 const redis = require('redis');
 
