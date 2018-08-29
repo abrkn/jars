@@ -128,3 +128,25 @@ test('uncaught error in handler', async t => {
   client.close();
   app.close();
 });
+
+test.only('queued request', async t => {
+  const conn = redis.createClient();
+  const channel = 'uncaught';
+
+  const client = await createRpcClient(conn.duplicate());
+  const resultPromise = client.request(channel, 'foo');
+
+  // Sleep for 2 seconds
+  await new Promise(resolve => setTimeout(resolve, 2e3));
+
+  const app = await createApplication(conn.duplicate(), channel);
+
+  app.add('foo', (req, res) => res.send('bar'));
+
+  const result = await resultPromise;
+
+  t.is(result, 'bar');
+
+  client.close();
+  app.close();
+});

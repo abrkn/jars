@@ -5,18 +5,22 @@ const { EventEmitter } = require('events');
 const redis = require('redis');
 const { generate: generateShortId } = require('shortid');
 const Promise = require('bluebird');
+const { safeFunction, safePromise } = require('safep');
 
-const ACK_TIMEOUT = 5e3;
+const PUB_ACK_TIMEOUT = 1e3;
+const QUEUE_PUB_ACK_TIMEOUT = 4e3;
 const RESPONSE_TIMEOUT = 30e3;
 
 async function createRpcClient(conn) {
   const sub = conn.duplicate();
   const pub = conn.duplicate();
+
   const requests = {};
   const replyTo = generateShortId();
   let requestCounter = 0;
 
   const pubPublishAsync = promisify(pub.publish).bind(pub);
+  const setAsync = promisify(pub.set).bind(pub);
 
   sub.on('message', (channel, encoded) => {
     debug(`RES <-- ${encoded}`);
@@ -51,7 +55,11 @@ async function createRpcClient(conn) {
     channel,
     method,
     params = {},
-    { ackTimeout = ACK_TIMEOUT, responseTimeout = RESPONSE_TIMEOUT } = {}
+    {
+      pubAckTimeout = PUB_ACK_TIMEOUT,
+      queueAckTimeout = QUEUE_PUB_ACK_TIMEOUT,
+      responseTimeout = RESPONSE_TIMEOUT,
+    } = {}
   ) => {
     const id = (++requestCounter).toString();
     const request = {};
@@ -77,7 +85,27 @@ async function createRpcClient(conn) {
       await pubPublishAsync(channel, encoded);
       debug(`REQ --> ${channel}: ${encoded}`);
 
-      await ackPromise.timeout(ackTimeout);
+      // Wait for an immediate ACK
+      const [pubAckError] = await safePromise(
+        ackPromise.timeout(pubAckTimeout)
+      );
+
+      if (pubAckError instanceof Promise.TimeoutError) {
+        debug(
+          `Failed to receive an immediate ack. Assuming subscriber offline.`
+        );
+
+        await setAsync(
+          `${channel}.queue.${generateShortId()}`,
+          encoded,
+          'EX',
+          queueAckTimeout / 1e3
+        );
+
+        // Wait for a qeueued ACK
+        await ackPromise.timeout(queueAckTimeout);
+      }
+
       debug(`ACK <-- ${channel}: ${id}`);
 
       return await responsePromise.timeout(responseTimeout);

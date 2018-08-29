@@ -51,7 +51,9 @@ async function createApplication(conn, channel) {
 
   const close = server.close;
 
-  return Object.assign(app, { server, router, middleware, use, add, close });
+  Object.assign(app, { server, router, middleware, use, add, close });
+
+  return app;
 }
 
 module.exports = createApplication;

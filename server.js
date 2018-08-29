@@ -2,6 +2,7 @@ const assert = require('assert');
 const debug = require('debug')('jars:server');
 const redis = require('redis');
 const { promisify } = require('util');
+const { EventEmitter } = require('events');
 
 async function createRpcServer(conn, channel, handler) {
   const sub = conn.duplicate();
@@ -9,8 +10,9 @@ async function createRpcServer(conn, channel, handler) {
 
   const subSubscribeAsync = promisify(sub.subscribe).bind(sub);
   const pubPublishAsync = promisify(pub.publish).bind(pub);
+  const pubKeysAsync = promisify(pub.keys).bind(pub);
 
-  sub.on('message', (channel, encoded) => {
+  const handleRequest = function handleRequest(encoded) {
     debug(`REQ <-- ${encoded}`);
 
     const { method, params, id, meta } = JSON.parse(encoded);
@@ -34,6 +36,7 @@ async function createRpcServer(conn, channel, handler) {
       let errorAsString;
 
       if (error instanceof Error) {
+        debug(`Unhandled error: ${error.stack}`);
         errorAsString = 'Internal Server Error';
       } else {
         errorAsString = error.toString();
@@ -56,16 +59,59 @@ async function createRpcServer(conn, channel, handler) {
         handler({ method, params, reply, replyWithResult, replyWithError })
       )
       .catch(replyWithError);
-  });
+  };
 
-  await subSubscribeAsync(channel);
+  // NOTE: Race condition with multiple readers
+  const drainQueuedRequests = async () => {
+    const keys = await pubKeysAsync(`${channel}.queue.*`);
 
-  return {
+    if (!keys.length) {
+      return;
+    }
+
+    debug(`Found ${keys.length} queued request(s)`);
+
+    // https://github.com/NodeRedis/node_redis#clientmulticommands
+    const pubGetAndDel = (key, callback) =>
+      pub
+        .multi()
+        .get(key)
+        .del(key)
+        .exec(
+          (error, result) =>
+            error ? callback(error) : callback(null, result[0])
+        );
+
+    // const pubGetAndDelAsync = promisify(pubGetAndDel);
+    const pubGetAndDelAsync = key =>
+      new Promise((resolve, reject) =>
+        pubGetAndDel(
+          key,
+          (error, result) => (error ? reject(error) : resolve(result))
+        )
+      );
+
+    const requests = await Promise.all(keys.map(pubGetAndDelAsync));
+    requests.forEach(handleRequest);
+  };
+
+  sub.on('message', (channel, encoded) => handleRequest(encoded));
+
+  const start = async () => {
+    await drainQueuedRequests();
+    await subSubscribeAsync(channel);
+  };
+
+  const emitter = new EventEmitter();
+
+  setImmediate(() => start().catch(error => emitter.emit(error)));
+
+  return Object.assign(emitter, {
     close: () => {
       sub.quit();
       pub.quit();
     },
-  };
+  });
 }
 
 module.exports = createRpcServer;
