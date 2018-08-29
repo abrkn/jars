@@ -4,11 +4,13 @@ const redis = require('redis');
 const { promisify } = require('util');
 const { EventEmitter } = require('events');
 
-async function createRpcServer(conn, channel, handler) {
+async function createRpcServer(conn, identifier, handler) {
   const pub = conn.duplicate();
   const sub = conn.duplicate();
 
   const publishAsync = promisify(pub.publish).bind(pub);
+
+  const listName = `jars.rpc.${identifier}`;
 
   const handleRequest = function handleRequest(encoded) {
     debug(`REQ <-- ${encoded}`);
@@ -62,7 +64,7 @@ async function createRpcServer(conn, channel, handler) {
   const emitter = new EventEmitter();
 
   const popNextRequest = () =>
-    sub.blpop(`rpc.${channel}`, 0, (error, [list, encoded]) => {
+    sub.blpop(listName, 0, (error, [list, encoded]) => {
       if (error) {
         emitter.emit('error', error);
         return;

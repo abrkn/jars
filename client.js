@@ -15,17 +15,18 @@ async function createClient(conn) {
   const lpushAsync = promisify(pub.lpush).bind(pub);
   const lremAsync = promisify(pub.lrem).bind(pub);
 
-  const replyChannel = `rpc.reply.${generateShortId()}`;
+  const replyChannel = `jars.rpc.${generateShortId()}`;
 
   const pendingRequests = {};
 
   async function request(
-    channel,
+    identifier,
     method,
     params,
     { ackTimeout = ACK_TIMEOUT, responseTimeout = RESPONSE_TIMEOUT } = {}
   ) {
     const id = generateShortId();
+    const listName = `jars.rpc.${identifier}`;
 
     const request = {};
 
@@ -49,9 +50,9 @@ async function createClient(conn) {
     try {
       pendingRequests[id] = request;
 
-      await lpushAsync(`rpc.${channel}`, encoded);
+      await lpushAsync(listName, encoded);
 
-      debug(`REQ --> ${channel}: ${encoded}`);
+      debug(`REQ --> ${listName}: ${encoded}`);
 
       const [ackError] = await safePromise(ackPromise.timeout(ackTimeout));
 
@@ -60,7 +61,7 @@ async function createClient(conn) {
           throw ackError;
         }
 
-        const removed = await lremAsync(`rpc.${channel}`, 0, encoded);
+        const removed = await lremAsync(listName, 0, encoded);
 
         if (removed) {
           debug(`Removed REQ ${id} that failed to receive ACK`);
@@ -72,7 +73,7 @@ async function createClient(conn) {
         );
       }
 
-      debug(`ACK <-- ${channel}: ${id}`);
+      debug(`ACK <-- ${listName}: ${id}`);
 
       return await responsePromise.timeout(responseTimeout);
     } finally {
