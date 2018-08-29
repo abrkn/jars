@@ -15,6 +15,7 @@ function createRouter() {
     const route = routes[req.method];
 
     if (!route) {
+      debug(`No route found for ${req.method}`);
       return next();
     }
 
