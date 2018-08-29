@@ -30,11 +30,11 @@ async function createApplication(conn, channel) {
 
     const res = {
       send: result => {
-        req.stop = true;
+        res.stop = true;
         replyWithResult(result);
       },
       error: error => {
-        req.stop = true;
+        res.stop = true;
         replyWithError(error);
       },
     };
