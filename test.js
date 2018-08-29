@@ -1,7 +1,9 @@
 const Promise = require('bluebird');
 const test = require('ava');
-const createRpcClient = require('./client');
-const createRpcServer = require('./server');
+// const createRpcClient = require('./client');
+// const createRpcServer = require('./server');
+const createRpcClient = require('./client.list');
+const createRpcServer = require('./server.list');
 const createApplication = require('./application');
 const redis = require('redis');
 
@@ -87,13 +89,14 @@ test('calculator client/application', async t => {
 
 test('ack timeout', async t => {
   const conn = redis.createClient();
+  const channel = 'ack timeout';
 
   const client = await createRpcClient(conn.duplicate());
 
   const startAt = new Date().getTime();
 
   try {
-    await client.request('ack timeout', 'test', {}, { ackTimeout: 1 });
+    await client.request(channel, 'test', {}, { ackTimeout: 1 });
   } catch (error) {
     if (error instanceof Promise.TimeoutError) {
       t.true(new Date().getTime() - startAt < 100);
@@ -113,7 +116,7 @@ test('uncaught error in handler', async t => {
   const app = await createApplication(conn.duplicate(), channel);
 
   app.add('throw', (req, res) => {
-    throw new Error();
+    throw new Error('Intentionally thrown');
   });
 
   const client = await createRpcClient(conn.duplicate());
@@ -129,9 +132,9 @@ test('uncaught error in handler', async t => {
   app.close();
 });
 
-test.only('queued request', async t => {
+test('queued request', async t => {
   const conn = redis.createClient();
-  const channel = 'uncaught';
+  const channel = 'queued request';
 
   const client = await createRpcClient(conn.duplicate());
   const resultPromise = client.request(channel, 'foo');

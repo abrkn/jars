@@ -1,5 +1,6 @@
 const createRouter = require('./router');
-const createRpcServer = require('./server');
+// const createRpcServer = require('./server');
+const createRpcServer = require('./server.list');
 const runMiddleware = require('./middleware');
 const debug = require('debug')('jars:application');
 
