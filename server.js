@@ -77,8 +77,11 @@ async function createRpcServer(conn, identifier, handler) {
 
   setImmediate(popNextRequest);
 
+  debug(`Listening for RPC requests on list ${listName}`);
+
   return Object.assign(emitter, {
     close: () => {
+      debug(`Closing redis connections`);
       sub.quit();
       pub.quit();
     },

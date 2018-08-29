@@ -8,6 +8,7 @@ function createRouter() {
     assert(method && method.length);
     assert(!routes[method], 'Duplicate route');
     routes[method] = handler;
+    debug(`Added route ${method}`);
   };
 
   const route = function route(req, res, next) {
