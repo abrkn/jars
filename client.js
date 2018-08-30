@@ -5,10 +5,14 @@ const { safeFunction, safePromise } = require('safep');
 const errors = require('./errors');
 const debug = require('debug')('jars:client.list');
 
-const ACK_TIMEOUT = 5e3;
-const RESPONSE_TIMEOUT = 30e3;
+const DEFAULT_REQUEST_OPTIONS = {
+  ackTimeout: 5e3,
+  responseTimeout: 30e3,
+};
 
-async function createClient(conn) {
+async function createClient(conn, options = {}) {
+  const defaultClientRequestOptions = Object.assign({}, DEFAULT_REQUEST_OPTIONS, options.request);
+
   const sub = conn.duplicate();
   const pub = conn.duplicate();
 
@@ -21,11 +25,7 @@ async function createClient(conn) {
   const pendingRequests = {};
 
   async function request(identifier, method, params, options = {}) {
-    Object.assign(options, {
-      ackTimeout: ACK_TIMEOUT,
-      responseTimeout: RESPONSE_TIMEOUT,
-      ...options,
-    });
+    const optionsWithDefaults = Object.assign({}, defaultClientRequestOptions, options);
 
     const id = generateShortId();
     const listName = `jars.rpc.${identifier}`;
@@ -54,7 +54,7 @@ async function createClient(conn) {
     const getRequestDataForError = () => ({
       message,
       identifier,
-      options,
+      optionsWithDefaults,
     });
 
     try {
@@ -64,7 +64,7 @@ async function createClient(conn) {
 
       debug(`REQ --> ${listName}: ${encoded}`);
 
-      const [ackError] = await safePromise(ackPromise.timeout(options.ackTimeout));
+      const [ackError] = await safePromise(ackPromise.timeout(optionsWithDefaults.ackTimeout));
 
       if (ackError instanceof Promise.TimeoutError) {
         const removed = await lremAsync(listName, 0, encoded);
@@ -81,7 +81,7 @@ async function createClient(conn) {
 
       debug(`ACK <-- ${listName}: ${id}`);
 
-      return await responsePromise.timeout(options.responseTimeout);
+      return await responsePromise.timeout(optionsWithDefaults.responseTimeout);
     } catch (error) {
       if (!error instanceof errors.RequestError) {
         throw new errors.RequestError(error, getRequestDataForError());
