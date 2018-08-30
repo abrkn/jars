@@ -5,6 +5,7 @@ const createRpcClient = require('./client');
 const createRpcServer = require('./server');
 const createApplication = require('./application');
 const redis = require('redis');
+const { withQuietAckTimeout } = require('./helpers');
 
 test('calculator client/server', async t => {
   const conn = redis.createClient();
@@ -139,6 +140,34 @@ test('queued request', async t => {
 
   const result = await resultPromise;
 
+  t.is(result, 'bar');
+
+  client.close();
+  app.close();
+});
+
+test('withQuietAckTimeout (times out)', async t => {
+  const conn = redis.createClient();
+  const channel = 'withQuietAckTimeout (times out)';
+
+  const client = await createRpcClient(conn.duplicate());
+
+  const result = await withQuietAckTimeout(client.request(channel, 'test', {}, { ackTimeout: 1 }));
+  t.is(result, undefined);
+
+  client.close();
+});
+
+test('withQuietAckTimeout (returns)', async t => {
+  const conn = redis.createClient();
+  const channel = 'withQuietAckTimeout (returns)';
+
+  const client = await createRpcClient(conn.duplicate());
+
+  const app = await createApplication(conn.duplicate(), channel);
+  app.add('foo', (req, res) => res.send('bar'));
+
+  const result = await withQuietAckTimeout(client.request(channel, 'foo'));
   t.is(result, 'bar');
 
   client.close();
