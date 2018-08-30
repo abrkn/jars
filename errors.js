@@ -18,7 +18,7 @@ exports.RequestError = class RequestError extends Error {
 
 exports.AckTimeoutError = class AckTimeoutError extends exports.RequestError {
   constructor(request) {
-    const message = `Timed out waiting for the consumer to acknowledged receipt of the request`;
+    const message = `Timed out waiting for consumer to acknowledge receipt of the request`;
     super(message, request);
 
     this.name = this.constructor.name;
