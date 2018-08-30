@@ -78,7 +78,7 @@ test('calculator client/application', async t => {
   app.close();
 });
 
-test.only('ack timeout', async t => {
+test('ack timeout', async t => {
   const conn = redis.createClient();
   const channel = 'ack timeout';
 
