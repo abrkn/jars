@@ -4,4 +4,5 @@ Object.assign(exports, {
   createRouter: require('./router'),
   createApplication: require('./application'),
   createApp: require('./application'),
+  errors: require('./errors'),
 });

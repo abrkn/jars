@@ -2,6 +2,7 @@ const Promise = require('bluebird');
 const { promisify } = require('util');
 const { generate: generateShortId } = require('shortid');
 const { safeFunction, safePromise } = require('safep');
+const errors = require('./errors');
 const debug = require('debug')('jars:client.list');
 
 const ACK_TIMEOUT = 5e3;
@@ -19,53 +20,60 @@ async function createClient(conn) {
 
   const pendingRequests = {};
 
-  async function request(
-    identifier,
-    method,
-    params,
-    { ackTimeout = ACK_TIMEOUT, responseTimeout = RESPONSE_TIMEOUT } = {}
-  ) {
+  async function request(identifier, method, params, options = {}) {
+    Object.assign(options, {
+      ackTimeout: ACK_TIMEOUT,
+      responseTimeout: RESPONSE_TIMEOUT,
+      ...options,
+    });
+
     const id = generateShortId();
     const listName = `jars.rpc.${identifier}`;
 
-    const request = {};
+    const pendingRequest = {};
 
     const ackPromise = new Promise(ackResolve => {
-      Object.assign(request, { ...request, ackResolve });
+      Object.assign(pendingRequest, { ...pendingRequest, ackResolve });
     });
 
     const responsePromise = new Promise((responseResolve, reject) => {
-      Object.assign(request, { ...request, responseResolve, reject });
+      Object.assign(pendingRequest, { ...pendingRequest, responseResolve, reject });
     });
 
-    const encoded = JSON.stringify({
+    const message = {
       id,
       method,
       params,
       meta: {
         replyChannel,
       },
+    };
+
+    const encoded = JSON.stringify(message);
+
+    const getRequestDataForError = () => ({
+      message,
+      identifier,
+      options,
     });
 
     try {
-      pendingRequests[id] = request;
+      pendingRequests[id] = pendingRequest;
 
       await lpushAsync(listName, encoded);
 
       debug(`REQ --> ${listName}: ${encoded}`);
 
-      const [ackError] = await safePromise(ackPromise.timeout(ackTimeout));
+      const [ackError] = await safePromise(ackPromise.timeout(options.ackTimeout));
 
-      if (ackError) {
-        if (!ackError instanceof Promise.TimeoutError) {
-          throw ackError;
-        }
-
+      if (ackError instanceof Promise.TimeoutError) {
         const removed = await lremAsync(listName, 0, encoded);
 
         if (removed) {
           debug(`Removed REQ ${id} that failed to receive ACK`);
-          throw ackError;
+          throw new errors.AckTimeoutError(getRequestDataForError());
+        } else if (ackError) {
+          throw new errors.RequestError('Request failed', getRequestDataForError());
         }
 
         debug(`Failed to remove REQ ${id}. Assuming it was ACK-ed in race condition`);
@@ -73,7 +81,13 @@ async function createClient(conn) {
 
       debug(`ACK <-- ${listName}: ${id}`);
 
-      return await responsePromise.timeout(responseTimeout);
+      return await responsePromise.timeout(options.responseTimeout);
+    } catch (error) {
+      if (!error instanceof errors.RequestError) {
+        throw new errors.RequestError(error, getRequestDataForError());
+      }
+
+      throw error;
     } finally {
       delete pendingRequests[id];
     }

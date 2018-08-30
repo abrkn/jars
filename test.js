@@ -1,5 +1,6 @@
 const Promise = require('bluebird');
 const test = require('ava');
+const errors = require('./errors');
 const createRpcClient = require('./client');
 const createRpcServer = require('./server');
 const createApplication = require('./application');
@@ -77,7 +78,7 @@ test('calculator client/application', async t => {
   app.close();
 });
 
-test('ack timeout', async t => {
+test.only('ack timeout', async t => {
   const conn = redis.createClient();
   const channel = 'ack timeout';
 
@@ -88,7 +89,7 @@ test('ack timeout', async t => {
   try {
     await client.request(channel, 'test', {}, { ackTimeout: 1 });
   } catch (error) {
-    if (error instanceof Promise.TimeoutError) {
+    if (error instanceof errors.AckTimeoutError) {
       t.true(new Date().getTime() - startAt < 100);
       return;
     }
