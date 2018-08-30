@@ -20,11 +20,7 @@ test('calculator client/server', async t => {
     return replyWithError(`Unknown method ${method}`);
   };
 
-  const server = await createRpcServer(
-    conn.duplicate(),
-    'calculator c/s',
-    handler
-  );
+  const server = await createRpcServer(conn.duplicate(), 'calculator c/s', handler);
   const client = await createRpcClient(conn.duplicate());
 
   const addResult = await client.request('calculator c/s', 'add', {
@@ -54,12 +50,8 @@ test('calculator client/application', async t => {
 
   const app = await createApplication(conn.duplicate(), 'calculator c/a');
 
-  app.add('add', (req, res) =>
-    res.send(req.params.n.reduce((p, c) => p + c, 0))
-  );
-  app.add('multiply', (req, res) =>
-    res.send(req.params.n.reduce((p, c) => p + c, 0))
-  );
+  app.add('add', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
+  app.add('multiply', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
 
   const client = await createRpcClient(conn.duplicate());
 

@@ -68,9 +68,7 @@ async function createClient(conn) {
           throw ackError;
         }
 
-        debug(
-          `Failed to remove REQ ${id}. Assuming it was ACK-ed in race condition`
-        );
+        debug(`Failed to remove REQ ${id}. Assuming it was ACK-ed in race condition`);
       }
 
       debug(`ACK <-- ${listName}: ${id}`);

@@ -14,13 +14,7 @@ async function createApplication(conn, channel) {
 
   const add = router.add;
 
-  const handler = ({
-    method,
-    params,
-    reply,
-    replyWithResult,
-    replyWithError,
-  }) => {
+  const handler = ({ method, params, reply, replyWithResult, replyWithError }) => {
     const req = {
       app,
       method,
