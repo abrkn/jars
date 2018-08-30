@@ -15,7 +15,7 @@ async function createClient(conn) {
   const lpushAsync = promisify(pub.lpush).bind(pub);
   const lremAsync = promisify(pub.lrem).bind(pub);
 
-  const replyChannel = `jars.rpc.${generateShortId()}`;
+  const replyChannel = `jars.reply.${generateShortId()}`;
 
   const pendingRequests = {};
 
