@@ -13,8 +13,10 @@ const DEFAULT_REQUEST_OPTIONS = {
 async function createClient(conn, options = {}) {
   const defaultClientRequestOptions = Object.assign({}, DEFAULT_REQUEST_OPTIONS, options.request);
 
+  const pub = conn;
+
+  // Subscribing requires a dedicated connection
   const sub = conn.duplicate();
-  const pub = conn.duplicate();
 
   const subscribeAsync = promisify(sub.subscribe).bind(sub);
   const lpushAsync = promisify(pub.lpush).bind(pub);
