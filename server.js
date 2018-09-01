@@ -55,7 +55,7 @@ async function createRpcServer(conn, identifier, handler) {
 
     Promise.resolve()
       .then(ack)
-      .then(() => handler({ method, params, reply, replyWithResult, replyWithError }))
+      .then(() => handler({ method, params, reply, replyWithResult, replyWithError, error: replyWithError }))
       .catch(replyWithError);
   };
 
