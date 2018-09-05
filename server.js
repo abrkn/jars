@@ -62,11 +62,13 @@ async function createRpcServer(conn, identifier, handler) {
   const emitter = new EventEmitter();
 
   const popNextRequest = () =>
-    sub.blpop(listName, 0, (error, [list, encoded]) => {
+    sub.blpop(listName, 0, (error, result) => {
       if (error) {
         emitter.emit('error', error);
         return;
       }
+
+      const [, encoded] = result;
 
       setImmediate(() => handleRequest(encoded));
 
