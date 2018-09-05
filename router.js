@@ -1,5 +1,5 @@
 const assert = require('assert');
-const debug = require('debug')('jars:application');
+const debug = require('debug')('jars:router');
 
 function createRouter() {
   const routes = {};
