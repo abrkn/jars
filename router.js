@@ -20,8 +20,6 @@ function createRouter() {
       return next();
     }
 
-    debug('Found route');
-
     return route(req, res, next);
   };
 
