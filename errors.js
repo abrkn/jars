@@ -25,3 +25,13 @@ exports.AckTimeoutError = class AckTimeoutError extends exports.RequestError {
     Error.captureStackTrace(this, this.constructor);
   }
 };
+
+exports.ResponseTimeoutError = class ResponseTimeoutError extends exports.RequestError {
+  constructor(request) {
+    const message = `Timed out waiting for response`;
+    super(message, request);
+
+    this.name = this.constructor.name;
+    Error.captureStackTrace(this, this.constructor);
+  }
+};

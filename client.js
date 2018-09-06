@@ -75,7 +75,7 @@ async function createClient(conn, options = {}) {
           debug(`Removed REQ ${id} that failed to receive ACK`);
           throw new errors.AckTimeoutError(getRequestDataForError());
         } else if (ackError) {
-          throw new errors.RequestError('Request failed', getRequestDataForError());
+          throw new errors.RequestError(ackError, getRequestDataForError());
         }
 
         debug(`Failed to remove REQ ${id}. Assuming it was ACK-ed in race condition`);
@@ -83,13 +83,17 @@ async function createClient(conn, options = {}) {
 
       debug(`ACK <-- ${listName}: ${id}`);
 
-      return await responsePromise.timeout(optionsWithDefaults.responseTimeout);
-    } catch (error) {
-      if (!error instanceof errors.RequestError) {
-        throw new errors.RequestError(error, getRequestDataForError());
+      const [responseError, response] = await safePromise(responsePromise.timeout(optionsWithDefaults.responseTimeout));
+
+      if (responseError instanceof Promise.TimeoutError) {
+        throw new errors.ResponseTimeoutError(getRequestDataForError());
       }
 
-      throw error;
+      if (responseError) {
+        throw new errors.RequestError(responseError, getRequestDataForError());
+      }
+
+      return response;
     } finally {
       delete pendingRequests[id];
     }
