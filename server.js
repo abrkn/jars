@@ -44,7 +44,7 @@ async function createRpcServer(conn, identifier, handler) {
 
       return await reply({
         error: {
-          code: code || -32000,
+          code: code || 'InternalServerError',
           message: errorAsString,
           ...(data ? { data } : {}),
         },

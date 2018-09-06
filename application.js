@@ -1,6 +1,7 @@
 const createRouter = require('./router');
 const createRpcServer = require('./server');
 const runMiddleware = require('./middleware');
+const { pick } = require('lodash');
 const debug = require('debug')('jars:application');
 
 async function createApplication(conn, channel) {
@@ -9,8 +10,18 @@ async function createApplication(conn, channel) {
   const router = createRouter();
 
   const middleware = [router];
+  const errorHandlers = [];
 
-  const use = method => middleware.push(method);
+  const use = method => {
+    // const isErrorHandler = !!method.toString().match(/\(err/);
+    const isErrorHandler = method.length === 4; // err, req, res, next
+
+    if (isErrorHandler) {
+      errorHandlers.push(method);
+    } else {
+      middleware.push(method);
+    }
+  };
 
   const add = router.add;
 
@@ -38,7 +49,16 @@ async function createApplication(conn, channel) {
       res.error('Unhandled request');
     };
 
-    runMiddleware([...middleware, unhandled], req, res);
+    const unhandledError = (err, req, res) => {
+      const isProduction = process.env.NODE_ENV === 'production';
+      res.error(
+        'Internal server error',
+        'InternalServerError',
+        isProduction ? null : pick(err, 'message', 'stack', 'code', 'name')
+      );
+    };
+
+    runMiddleware([...middleware, unhandled], [...errorHandlers, unhandledError], req, res);
   };
 
   const server = await createRpcServer(conn, channel, handler);
