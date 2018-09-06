@@ -27,9 +27,9 @@ async function createApplication(conn, channel) {
         res.stop = true;
         replyWithResult(result);
       },
-      error: error => {
+      error: (...args) => {
         res.stop = true;
-        replyWithError(error);
+        replyWithError(...args);
       },
     };
 
