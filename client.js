@@ -7,7 +7,7 @@ const debug = require('debug')('jars:client.list');
 
 const DEFAULT_REQUEST_OPTIONS = {
   ackTimeout: 5e3,
-  responseTimeout: 30e3,
+  timeout: 30e3,
 };
 
 async function createClient(conn, options = {}) {
@@ -83,7 +83,7 @@ async function createClient(conn, options = {}) {
 
       debug(`ACK <-- ${listName}: ${id}`);
 
-      const [responseError, response] = await safePromise(responsePromise.timeout(optionsWithDefaults.responseTimeout));
+      const [responseError, response] = await safePromise(responsePromise.timeout(optionsWithDefaults.timeout));
 
       if (responseError instanceof Promise.TimeoutError) {
         throw new errors.ResponseTimeoutError(getRequestDataForError());
