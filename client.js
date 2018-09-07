@@ -83,7 +83,9 @@ async function createClient(conn, options = {}) {
 
       debug(`ACK <-- ${listName}: ${id}`);
 
-      const [responseError, response] = await safePromise(responsePromise.timeout(optionsWithDefaults.timeout));
+      const timeout = optionsWithDefaults.timeout - optionsWithDefaults.ackTimeout;
+
+      const [responseError, response] = await safePromise(responsePromise.timeout(timeout));
 
       if (responseError instanceof Promise.TimeoutError) {
         throw new errors.ResponseTimeoutError(getRequestDataForError());
