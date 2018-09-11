@@ -1,3 +1,4 @@
+const assert = require('assert');
 const Promise = require('bluebird');
 const { promisify } = require('util');
 const { generate: generateShortId } = require('shortid');
@@ -11,6 +12,8 @@ const DEFAULT_REQUEST_OPTIONS = {
 };
 
 async function createClient(conn, options = {}) {
+  assert(conn, 'conn is required');
+
   const defaultClientRequestOptions = Object.assign({}, DEFAULT_REQUEST_OPTIONS, options.request);
 
   const pub = conn;
