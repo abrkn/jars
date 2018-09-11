@@ -5,6 +5,10 @@ const { promisify } = require('util');
 const { EventEmitter } = require('events');
 
 async function createRpcServer(conn, identifier, handler) {
+  assert(conn, 'conn is required');
+  assert.equal(typeof identifier, 'string', 'identifier must be a string');
+  assert.equal(typeof handler, 'function', 'handler must be a function');
+
   const pub = conn.duplicate();
   const sub = conn.duplicate();
 
