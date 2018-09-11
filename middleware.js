@@ -8,8 +8,10 @@ function runErrorMiddleware(fns, err, req, res) {
   const pop = () => {
     const next = error => {
       if (error) {
-        debug(`Error changed to ${err.message}`);
-        err = error;
+        if (error !== err) {
+          debug(`Error changed to ${err.message}`);
+          err = error;
+        }
       }
 
       if (res.stop) {
