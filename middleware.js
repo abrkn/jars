@@ -1,13 +1,19 @@
+const assert = require('assert');
 const debug = require('debug')('jars:middleware');
 
-function runErrorMiddleware(fns, err, req, res) {
+async function runErrorMiddleware(fns, err, req, res) {
   debug(`Running error middleware for ${err.message}`);
 
   const remaining = fns.slice();
 
-  const pop = () => {
+  const pop = async () => {
     const next = error => {
+      let ranNext;
+
       if (error) {
+        assert(!ranNext);
+        ranNext = true;
+
         if (error !== err) {
           debug(`Error changed to ${err.message}`);
           err = error;
@@ -18,44 +24,50 @@ function runErrorMiddleware(fns, err, req, res) {
         return;
       }
 
-      pop();
+      return pop();
     };
 
     const fn = remaining.shift();
-    const result = fn(err, req, res, next);
 
-    if (result && result.then) {
-      result.then(_ => next()).catch(next);
+    try {
+      await fn(err, req, res, next);
+    } catch (error) {
+      return next(error);
     }
   };
 
-  pop();
+  return pop();
 }
 
-module.exports = function runMiddleware(fns, errFns, req, res) {
+module.exports = async function runMiddleware(fns, errFns, req, res) {
   const remaining = fns.slice();
 
-  const pop = () => {
-    const next = error => {
+  const pop = async () => {
+    let ranNext;
+
+    const next = async error => {
+      assert(!ranNext);
+      ranNext = true;
+
       if (error) {
-        runErrorMiddleware(errFns, error, req, res);
-        return;
+        return runErrorMiddleware(errFns, error, req, res);
       }
 
       if (res.stop) {
         return;
       }
 
-      pop();
+      return pop();
     };
 
     const fn = remaining.shift();
-    const result = fn(req, res, next);
 
-    if (result && result.then) {
-      result.then(_ => next()).catch(next);
+    try {
+      await fn(req, res, next);
+    } catch (error) {
+      next(error);
     }
   };
 
-  pop();
+  return pop();
 };
