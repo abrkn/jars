@@ -62,7 +62,7 @@ async function createApplication(conn, identifier) {
       );
     };
 
-    runMiddleware([...middleware, unhandled], [...errorHandlers, unhandledError], req, res);
+    return runMiddleware([...middleware, unhandled], [...errorHandlers, unhandledError], req, res);
   };
 
   const server = await createRpcServer(conn, identifier, handler);

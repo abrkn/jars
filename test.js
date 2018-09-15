@@ -6,9 +6,11 @@ const createRpcServer = require('./server');
 const createApplication = require('./application');
 const redis = require('redis');
 const { withQuietAckTimeout } = require('./helpers');
+const { generate: generateShortId } = require('shortid');
 
 test('calculator client/server', async t => {
   const conn = redis.createClient();
+  const channel = generateShortId();
 
   const handler = ({ method, params, replyWithResult, replyWithError }) => {
     if (method === 'add') {
@@ -22,66 +24,61 @@ test('calculator client/server', async t => {
     return replyWithError(`Unknown method ${method}`);
   };
 
-  const server = await createRpcServer(conn.duplicate(), 'calculator c/s', handler);
+  const server = await createRpcServer(conn.duplicate(), channel, handler);
   const client = await createRpcClient(conn.duplicate());
 
-  const addResult = await client.request('calculator c/s', 'add', {
+  const addResult = await client.request(channel, 'add', {
     n: [1, 2, 3],
   });
   t.is(addResult, 6);
 
-  const multiplyResult = await client.request('calculator c/s', 'multiply', {
+  const multiplyResult = await client.request(channel, 'multiply', {
     n: [1, 2, 3],
   });
 
   t.is(multiplyResult, 6);
 
   try {
-    await client.request('calculator c/s', 'divide', [123]);
+    await client.request(channel, 'divide', [123]);
     t.fail('Expected divide invocation to fail');
   } catch (error) {
     t.regex(error.message, /unknown method/i);
   }
 
-  server.close();
   client.close();
+  return server.close();
 });
 
 test('calculator client/application', async t => {
   const conn = redis.createClient();
+  const channel = generateShortId();
 
-  const app = await createApplication(conn.duplicate(), 'calculator c/a');
+  const app = await createApplication(conn.duplicate(), channel);
 
-  app.add('add', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
   app.add('multiply', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
 
   const client = await createRpcClient(conn.duplicate());
 
-  const addResult = await client.request('calculator c/a', 'add', {
-    n: [1, 2, 3],
-  });
-  t.is(addResult, 6);
-
-  const multiplyResult = await client.request('calculator c/a', 'multiply', {
+  const multiplyResult = await client.request(channel, 'multiply', {
     n: [1, 2, 3],
   });
 
   t.is(multiplyResult, 6);
 
   try {
-    await client.request('calculator c/a', 'divide', [123]);
+    await client.request(channel, 'divide', [123]);
     t.fail('Expected divide invocation to fail');
   } catch (error) {
     t.regex(error.message, /unhandled/i);
   }
 
   client.close();
-  app.close();
+  await app.close();
 });
 
 test('ack timeout', async t => {
   const conn = redis.createClient();
-  const channel = 'ack timeout';
+  const channel = generateShortId();
 
   const client = await createRpcClient(conn.duplicate());
 
@@ -103,7 +100,7 @@ test('ack timeout', async t => {
 
 test('uncaught error in handler', async t => {
   const conn = redis.createClient();
-  const channel = 'uncaught';
+  const channel = generateShortId();
 
   const app = await createApplication(conn.duplicate(), channel);
 
@@ -126,7 +123,7 @@ test('uncaught error in handler', async t => {
 
 test('queued request', async t => {
   const conn = redis.createClient();
-  const channel = 'queued request';
+  const channel = generateShortId();
 
   const client = await createRpcClient(conn.duplicate());
   const resultPromise = client.request(channel, 'foo');
@@ -142,25 +139,25 @@ test('queued request', async t => {
 
   t.is(result, 'bar');
 
+  await app.close();
   client.close();
-  app.close();
 });
 
 test('withQuietAckTimeout (times out)', async t => {
   const conn = redis.createClient();
-  const channel = 'withQuietAckTimeout (times out)';
+  const channel = generateShortId();
 
   const client = await createRpcClient(conn.duplicate());
 
   const result = await withQuietAckTimeout(client.request(channel, 'test', {}, { ackTimeout: 1 }));
   t.is(result, undefined);
 
-  client.close();
+  await client.close();
 });
 
 test('withQuietAckTimeout (returns)', async t => {
   const conn = redis.createClient();
-  const channel = 'withQuietAckTimeout (returns)';
+  const channel = generateShortId();
 
   const client = await createRpcClient(conn.duplicate());
 
@@ -171,5 +168,48 @@ test('withQuietAckTimeout (returns)', async t => {
   t.is(result, 'bar');
 
   client.close();
-  app.close();
+  await app.close();
+});
+
+test('request draining', async t => {
+  const BASE_TIME = 500;
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const channel = generateShortId();
+
+  const conn = redis.createClient();
+
+  const app = await createApplication(conn.duplicate(), channel);
+
+  app.add('slow', async (req, res) => {
+    await delay(BASE_TIME * 4);
+    await res.send(true);
+  });
+
+  const client = await createRpcClient(conn.duplicate());
+
+  const resultPromise = client.request(channel, 'slow');
+  let resultResolved = false;
+
+  resultPromise.then(_ => {
+    resultResolved = true;
+  });
+
+  await delay(BASE_TIME);
+
+  const closePromise = app.close(true);
+
+  await delay(BASE_TIME);
+
+  // Should not be resolved just yet
+  t.is(resultResolved, false);
+
+  await closePromise;
+
+  await delay(BASE_TIME);
+
+  const result = await resultPromise;
+
+  t.is(result, true);
+
+  client.close();
 });

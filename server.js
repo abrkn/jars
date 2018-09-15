@@ -12,6 +12,11 @@ async function createRpcServer(conn, identifier, handler) {
   const pub = conn.duplicate();
   const sub = conn.duplicate();
 
+  let closePromise;
+  let isClosing = false;
+
+  const pendingRequests = [];
+
   const publishAsync = promisify(pub.publish).bind(pub);
 
   const listName = `jars.rpc.${identifier}`;
@@ -19,8 +24,13 @@ async function createRpcServer(conn, identifier, handler) {
   const handleRequest = function handleRequest(encoded) {
     debug(`REQ <-- ${encoded}`);
 
-    const { method, params, id, meta } = JSON.parse(encoded);
+    if (closePromise) {
+      debug(`Received request while closing. Ignoring`);
+      return;
+    }
 
+    // TODO: Parsing must be moved into a try...catch
+    const { method, params, id, meta } = JSON.parse(encoded);
     const { replyChannel } = meta;
     assert(replyChannel, 'replyChannel is required');
 
@@ -57,16 +67,31 @@ async function createRpcServer(conn, identifier, handler) {
 
     const replyWithResult = async result => reply({ result });
 
-    Promise.resolve()
-      .then(ack)
-      .then(() => handler({ method, params, reply, replyWithResult, replyWithError, error: replyWithError }))
-      .catch(replyWithError);
+    const requestPromise = (async () => {
+      try {
+        await ack();
+        await handler({ method, params, reply, replyWithResult, replyWithError, error: replyWithError });
+      } catch (error) {
+        await replyWithError(error);
+      } finally {
+        pendingRequests.splice(pendingRequests.indexOf(requestPromise), 1);
+        debug(`Pending request count reduced to ${pendingRequests.length}`);
+      }
+    })();
+
+    pendingRequests.push(requestPromise);
+    debug(`Pending request count increased to ${pendingRequests.length}`);
   };
 
   const emitter = new EventEmitter();
 
   const popNextRequest = () =>
     sub.blpop(listName, 0, (error, result) => {
+      if (isClosing) {
+        debug('Will not pop another. Server is closing.');
+        return;
+      }
+
       if (error) {
         emitter.emit('error', error);
         return;
@@ -83,11 +108,36 @@ async function createRpcServer(conn, identifier, handler) {
 
   debug(`Listening for RPC requests on list ${listName}`);
 
+  const pubQuitAsync = () => new Promise(resolve => pub.quit(resolve));
+
   return Object.assign(emitter, {
-    close: () => {
-      debug(`Closing redis connections`);
-      sub.quit();
-      pub.quit();
+    close: async () => {
+      if (!isClosing) {
+        isClosing = true;
+
+        closePromise = (async () => {
+          debug(`Closing`);
+
+          // Stop accepting new requests
+          debug('Quitting subscription connection');
+          sub.end(true);
+          debug('Quit subscription connection');
+
+          // Wait for all pending requests
+          if (pendingRequests.length) {
+            debug(`Waiting for ${pendingRequests.length} requests to finish`);
+            await Promise.all(pendingRequests.map(request => request.catch(_ => true)));
+          }
+
+          // Quit publishing Redis connection
+          debug('Quitting publishing connection');
+          await pubQuitAsync();
+        })();
+      }
+
+      assert(closePromise, 'Race condition');
+
+      return closePromise;
     },
   });
 }
