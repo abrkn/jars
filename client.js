@@ -65,9 +65,9 @@ async function createClient(conn, options = {}) {
     try {
       pendingRequests[id] = pendingRequest;
 
-      await lpushAsync(listName, encoded);
-
       debug(`REQ --> ${listName}: ${encoded}`);
+
+      await lpushAsync(listName, encoded);
 
       const [ackError] = await safePromise(ackPromise.timeout(optionsWithDefaults.ackTimeout));
 
