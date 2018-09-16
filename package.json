@@ -8,14 +8,14 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "ava": "0.25.0"
+    "ava": "0.25.0",
+    "redis": "2.8.0"
   },
   "dependencies": {
     "babel-plugin-transform-object-rest-spread": "6.26.0",
     "bluebird": "3.5.1",
     "debug": "3.1.0",
     "lodash": "4.17.10",
-    "redis": "2.8.0",
     "safep": "1.2.6",
     "shortid": "2.2.13"
   },
