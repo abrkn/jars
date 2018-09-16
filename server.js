@@ -131,6 +131,7 @@ async function createRpcServer(conn, identifier, handler) {
           // Quit publishing Redis connection
           debug('Quitting publishing connection');
           await pubQuitAsync();
+          debug('Quit publishing connection');
         })();
       }
 
