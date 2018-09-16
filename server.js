@@ -107,8 +107,6 @@ async function createRpcServer(conn, identifier, handler) {
 
   debug(`Listening for RPC requests on list ${listName}`);
 
-  const pubQuitAsync = () => new Promise(resolve => pub.quit(resolve));
-
   return Object.assign(emitter, {
     close: async () => {
       if (!isClosing) {
@@ -119,7 +117,7 @@ async function createRpcServer(conn, identifier, handler) {
 
           // Stop accepting new requests
           debug('Quitting subscription connection');
-          sub.end(true);
+          sub.end(false);
           debug('Quit subscription connection');
 
           // Wait for all pending requests
@@ -130,7 +128,7 @@ async function createRpcServer(conn, identifier, handler) {
 
           // Quit publishing Redis connection
           debug('Quitting publishing connection');
-          await pubQuitAsync();
+          pub.end(false);
           debug('Quit publishing connection');
         })();
       }
