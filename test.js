@@ -24,7 +24,7 @@ test('calculator client/server', async t => {
     return replyWithError(`Unknown method ${method}`);
   };
 
-  const server = await createRpcServer(conn.duplicate(), channel, handler);
+  const server = await createRpcServer(conn, channel, handler);
   const client = await createRpcClient(conn.duplicate());
 
   const addResult = await client.request(channel, 'add', {
@@ -53,7 +53,7 @@ test('calculator client/application', async t => {
   const conn = redis.createClient();
   const channel = generateShortId();
 
-  const app = await createApplication(conn.duplicate(), channel);
+  const app = await createApplication(conn, channel);
 
   app.add('multiply', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
 
@@ -102,7 +102,7 @@ test('uncaught error in handler', async t => {
   const conn = redis.createClient();
   const channel = generateShortId();
 
-  const app = await createApplication(conn.duplicate(), channel);
+  const app = await createApplication(conn, channel);
 
   app.add('throw', (req, res) => {
     throw new Error('Intentionally thrown');
@@ -131,7 +131,7 @@ test('queued request', async t => {
   // Sleep for 2 seconds
   await new Promise(resolve => setTimeout(resolve, 2e3));
 
-  const app = await createApplication(conn.duplicate(), channel);
+  const app = await createApplication(conn, channel);
 
   app.add('foo', (req, res) => res.send('bar'));
 
@@ -161,7 +161,7 @@ test('withQuietAckTimeout (returns)', async t => {
 
   const client = await createRpcClient(conn.duplicate());
 
-  const app = await createApplication(conn.duplicate(), channel);
+  const app = await createApplication(conn, channel);
   app.add('foo', (req, res) => res.send('bar'));
 
   const result = await withQuietAckTimeout(client.request(channel, 'foo'));
@@ -178,7 +178,7 @@ test('request draining', async t => {
 
   const conn = redis.createClient();
 
-  const app = await createApplication(conn.duplicate(), channel);
+  const app = await createApplication(conn, channel);
 
   app.add('slow', async (req, res) => {
     await delay(BASE_TIME * 4);
