@@ -1,6 +1,5 @@
 const assert = require('assert');
 const debug = require('debug')('jars:server');
-const redis = require('redis');
 const { promisify } = require('util');
 const { EventEmitter } = require('events');
 
