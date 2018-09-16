@@ -9,7 +9,7 @@ async function createRpcServer(conn, identifier, handler) {
   assert.equal(typeof identifier, 'string', 'identifier must be a string');
   assert.equal(typeof handler, 'function', 'handler must be a function');
 
-  const pub = conn.duplicate();
+  const pub = conn;
   const sub = conn.duplicate();
 
   let closePromise;
