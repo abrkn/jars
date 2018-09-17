@@ -2,7 +2,9 @@ const assert = require('assert');
 const debug = require('debug')('jars:middleware');
 
 async function runErrorMiddleware(fns, err, req, res) {
-  debug(`Running error middleware for ${err.message}`);
+  assert(err instanceof Error);
+
+  debug('Running error middleware for %s', err.message);
 
   const remaining = fns.slice();
 
