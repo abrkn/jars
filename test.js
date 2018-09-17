@@ -98,11 +98,34 @@ test('ack timeout', async t => {
   client.close();
 });
 
-test('uncaught error in handler', async t => {
+test('uncaught error in handler (non-production)', async t => {
   const conn = redis.createClient();
   const channel = generateShortId();
 
   const app = await createApplication(conn, channel);
+
+  app.add('throw', (req, res) => {
+    throw new Error('Intentionally thrown');
+  });
+
+  const client = await createRpcClient(conn.duplicate());
+
+  try {
+    await client.request(channel, 'throw');
+    t.fail('Expected error');
+  } catch (error) {
+    t.regex(error.message, /intentional/i);
+  }
+
+  client.close();
+  app.close();
+});
+
+test('uncaught error in handler (production)', async t => {
+  const conn = redis.createClient();
+  const channel = generateShortId();
+
+  const app = await createApplication(conn, channel, { revealErrorMessages: false });
 
   app.add('throw', (req, res) => {
     throw new Error('Intentionally thrown');

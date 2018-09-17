@@ -2,12 +2,15 @@ const assert = require('assert');
 const createRouter = require('./router');
 const createRpcServer = require('./server');
 const runMiddleware = require('./middleware');
-const { pick } = require('lodash');
+const { pick, defaultTo } = require('lodash');
 const debug = require('debug')('jars:application');
 
-async function createApplication(conn, identifier) {
+async function createApplication(conn, identifier, options = {}) {
   assert(conn, 'conn is required');
   assert.equal(typeof identifier, 'string', 'identifier must be a string');
+
+  const revealErrorMessages = defaultTo(options.revealErrorMessages, process.env.NODE_ENV !== 'production') === true;
+
 
   const app = {};
 
@@ -54,12 +57,14 @@ async function createApplication(conn, identifier) {
     };
 
     const unhandledError = (err, req, res) => {
-      const isProduction = process.env.NODE_ENV === 'production';
-      res.error(
-        'Internal server error',
-        'InternalServerError',
-        isProduction ? null : pick(err, 'message', 'stack', 'code', 'name')
-      );
+      const errorData = pick(err, 'message', 'stack', 'code', 'name');
+
+      if (revealErrorMessages) {
+        res.error(err.message, 'InternalServerError', errorData);
+      } else {
+        debug('Will not reveal error message:\n%O', errorData);
+        res.error('Internal server error', 'InternalServerError');
+      }
     };
 
     return runMiddleware([...middleware, unhandled], [...errorHandlers, unhandledError], req, res);
