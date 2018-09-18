@@ -1,5 +1,4 @@
 const assert = require('assert');
-const createRouter = require('./router');
 const createRpcServer = require('./server');
 const runMiddleware = require('./middleware');
 const { pick, defaultTo } = require('lodash');
@@ -11,12 +10,9 @@ async function createApplication(conn, identifier, options = {}) {
 
   const revealErrorMessages = defaultTo(options.revealErrorMessages, process.env.NODE_ENV !== 'production') === true;
 
-
   const app = {};
 
-  const router = createRouter();
-
-  const middleware = [router];
+  const middleware = [];
   const errorHandlers = [];
 
   const use = method => {
@@ -30,14 +26,13 @@ async function createApplication(conn, identifier, options = {}) {
     }
   };
 
-  const add = router.add;
-
-  const handler = ({ method, params, reply, replyWithResult, replyWithError }) => {
+  const handler = ({ method, params, reply, meta, replyWithResult, replyWithError }) => {
     const req = {
       app,
       method,
       params,
       stop: false,
+      meta,
     };
 
     const res = {
@@ -74,7 +69,7 @@ async function createApplication(conn, identifier, options = {}) {
 
   const close = server.close;
 
-  Object.assign(app, { server, router, middleware, use, add, close });
+  Object.assign(app, { server, middleware, use, close });
 
   return app;
 }
