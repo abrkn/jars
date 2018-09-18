@@ -2,6 +2,9 @@ const assert = require('assert');
 const debug = require('debug')('jars:server');
 const { promisify } = require('util');
 const { EventEmitter } = require('events');
+const { createDebugRaw } = require('./helpers');
+
+const debugRaw = createDebugRaw('jars:server');
 
 async function createRpcServer(conn, identifier, handler) {
   assert(conn, 'conn is required');
@@ -21,7 +24,7 @@ async function createRpcServer(conn, identifier, handler) {
   const listName = `jars.rpc.${identifier}`;
 
   const handleRequest = function handleRequest(encoded) {
-    debug(`REQ <-- ${encoded}`);
+    debugRaw(`REQ <-- ${encoded}`);
 
     if (closePromise) {
       debug(`Received request while closing. Ignoring`);
@@ -35,13 +38,13 @@ async function createRpcServer(conn, identifier, handler) {
 
     const reply = async message => {
       const encoded = JSON.stringify({ id, ...message });
-      debug(`RES --> ${replyChannel}: ${encoded}`);
+      debugRaw(`RES --> ${replyChannel}: ${encoded}`);
       await publishAsync(replyChannel, encoded);
     };
 
     const ack = async () => {
       const encoded = JSON.stringify({ id, status: 'ack' });
-      debug(`ACK --> ${replyChannel}: ${id}`);
+      debugRaw(`ACK --> ${replyChannel}: ${id}`);
       await publishAsync(replyChannel, encoded);
     };
 

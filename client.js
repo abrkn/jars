@@ -4,12 +4,15 @@ const { promisify } = require('util');
 const { generate: generateShortId } = require('shortid');
 const { safeFunction, safePromise } = require('safep');
 const errors = require('./errors');
+const { createDebugRaw } = require('./helpers');
 const debug = require('debug')('jars:client');
 
 const DEFAULT_REQUEST_OPTIONS = {
   ackTimeout: 5e3,
   timeout: 30e3,
 };
+
+const debugRaw = createDebugRaw('jars:client');
 
 async function createClient(conn, options = {}) {
   assert(conn, 'conn is required');
@@ -66,7 +69,7 @@ async function createClient(conn, options = {}) {
     try {
       pendingRequests[id] = pendingRequest;
 
-      debug(`REQ --> ${listName}: ${encoded}`);
+      debugRaw(`REQ --> ${listName}: ${encoded}`);
 
       await lpushAsync(listName, encoded);
 
@@ -85,7 +88,7 @@ async function createClient(conn, options = {}) {
         debug(`Failed to remove REQ ${id}. Assuming it was ACK-ed in race condition`);
       }
 
-      debug(`ACK <-- ${listName}: ${id}`);
+      debugRaw(`ACK <-- ${listName}: ${id}`);
 
       const timeout = optionsWithDefaults.timeout - optionsWithDefaults.ackTimeout;
 
@@ -114,7 +117,7 @@ async function createClient(conn, options = {}) {
       return;
     }
 
-    debug(`RES <-- ${encoded}`);
+    debugRaw(`RES <-- ${encoded}`);
 
     const { id, result, error, status } = JSON.parse(encoded);
 
