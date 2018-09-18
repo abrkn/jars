@@ -51,6 +51,7 @@ async function createClient(conn, options = {}) {
       params,
       meta: {
         replyChannel,
+        ...(options.meta || {}),
       },
     };
 
