@@ -4,6 +4,7 @@ const errors = require('./errors');
 const createRpcClient = require('./client');
 const createRpcServer = require('./server');
 const createApplication = require('./application');
+const createRouter = require('./router');
 const redis = require('redis');
 const { withQuietAckTimeout } = require('./helpers');
 const { generate: generateShortId } = require('shortid');
@@ -55,7 +56,10 @@ test('calculator client/application', async t => {
 
   const app = await createApplication(conn, channel);
 
-  app.add('multiply', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
+  const router = createRouter();
+  app.use(router);
+
+  router.add('multiply', (req, res) => res.send(req.params.n.reduce((p, c) => p + c, 0)));
 
   const client = await createRpcClient(conn.duplicate());
 
@@ -104,7 +108,10 @@ test('uncaught error in handler (non-production)', async t => {
 
   const app = await createApplication(conn, channel);
 
-  app.add('throw', (req, res) => {
+  const router = createRouter();
+  app.use(router);
+
+  router.add('throw', (req, res) => {
     throw new Error('Intentionally thrown');
   });
 
@@ -127,7 +134,10 @@ test('uncaught error in handler (production)', async t => {
 
   const app = await createApplication(conn, channel, { revealErrorMessages: false });
 
-  app.add('throw', (req, res) => {
+  const router = createRouter();
+  app.use(router);
+
+  router.add('throw', (req, res) => {
     throw new Error('Intentionally thrown');
   });
 
@@ -156,7 +166,10 @@ test('queued request', async t => {
 
   const app = await createApplication(conn, channel);
 
-  app.add('foo', (req, res) => res.send('bar'));
+  const router = createRouter();
+  app.use(router);
+
+  router.add('foo', (req, res) => res.send('bar'));
 
   const result = await resultPromise;
 
@@ -185,7 +198,11 @@ test('withQuietAckTimeout (returns)', async t => {
   const client = await createRpcClient(conn.duplicate());
 
   const app = await createApplication(conn, channel);
-  app.add('foo', (req, res) => res.send('bar'));
+
+  const router = createRouter();
+  app.use(router);
+
+  router.add('foo', (req, res) => res.send('bar'));
 
   const result = await withQuietAckTimeout(client.request(channel, 'foo'));
   t.is(result, 'bar');
@@ -203,7 +220,10 @@ test('request draining', async t => {
 
   const app = await createApplication(conn, channel);
 
-  app.add('slow', async (req, res) => {
+  const router = createRouter();
+  app.use(router);
+
+  router.add('slow', async (req, res) => {
     await delay(BASE_TIME * 4);
     await res.send(true);
   });
