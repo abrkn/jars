@@ -69,7 +69,7 @@ async function createRpcServer(conn, identifier, handler) {
     const requestPromise = (async () => {
       try {
         await ack();
-        await handler({ method, params, reply, replyWithResult, replyWithError, error: replyWithError });
+        await handler({ method, params, id, meta, reply, replyWithResult, replyWithError, error: replyWithError });
       } catch (error) {
         await replyWithError(error);
       } finally {
