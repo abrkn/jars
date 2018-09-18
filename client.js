@@ -4,7 +4,7 @@ const { promisify } = require('util');
 const { generate: generateShortId } = require('shortid');
 const { safeFunction, safePromise } = require('safep');
 const errors = require('./errors');
-const debug = require('debug')('jars:client.list');
+const debug = require('debug')('jars:client');
 
 const DEFAULT_REQUEST_OPTIONS = {
   ackTimeout: 5e3,
