@@ -8,7 +8,7 @@ exports.RequestError = class RequestError extends Error {
     Object.assign(this, {
       request,
       response,
-      ...(innerError && { innerError }),
+      ...(innerError && innerError),
     });
 
     this.name = this.constructor.name;
