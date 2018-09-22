@@ -38,11 +38,11 @@ async function createApplication(conn, identifier, options = {}) {
     const res = {
       send: result => {
         res.stop = true;
-        replyWithResult(result);
+        return replyWithResult(result);
       },
       error: (...args) => {
         res.stop = true;
-        replyWithError(...args);
+        return replyWithError(...args);
       },
     };
 
